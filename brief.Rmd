@@ -1,0 +1,144 @@
+---
+title: "brief"
+author: "Donigo Fernando Sinaga"
+date: "7/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 9999)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+```
+
+Tujuan:
+1. Mengetahui tipe rumah yg laku (beserta spesifikasinya) di suatu daerah tertentu 
+2. Melihat nilai harga/area dari rumah dgn spesifikasi tertentu dari tiap lokasi
+
+5W+1H
+Who: Developer rumah
+What: Data rumah yg terjual
+When: 2014-2015
+Where: King County, Washington, USA
+
+Why: 
+1. agar developer yg berniat membangun rumah di daerah tersebut dapat mengetahui tipe rumah apa yg sebaiknya dibangun dan kisaran harga jualnya agar dapat diatur biaya pembangunan tidak melebihi harga jual
+2. agar developer dapat mengetahui lokasi mana yg memiliki harga luas tanah yg tinggi
+
+How:
+1.a. 3 valuebox berisi tipe rumah terlaku (jumlah kamar tidur, kamar mandi, dan lantai), harga rata2 tipe rumah terlaku, dan kondisi rata2nya.
+  b. 1 input zipcode
+  c. plotly y = jumlah rumah terjual dan x = tipe rumah
+2.a. 2 valuebox berisi lokasi dgn harga/area tertinggi dan rata2 harga di lokasi tersebut
+  b. 2 valuebox berisi lokasi dgn harga/area terendah dan rata2 harga di lokasi tersebut
+  c. 4 input (1 slider luas tanah dan 3 numericinput berisi jumlah kamar tidur, jumlah kamar mandi, dan jumlah lantai
+  d. 2 plotly (1 plot harga/area tertinggi dan 1 plot harga/area terendah terhadap lokasi)
+
+# Reading Data
+```{r}
+houses <- read_csv("kc_house_data.csv")
+str(houses)
+```
+
+# Showing Data
+```{r}
+houses
+```
+
+# Data Wrangling
+```{r}
+houses <- houses %>% 
+  mutate_at(vars(waterfront, view, zipcode), factor) %>% 
+  select(-c(ends_with("15"), starts_with("yr"),"id", "condition", "date")) %>%
+  mutate_at(vars(bathrooms, floors), funs(round(., 0))) %>% 
+  mutate_at(vars(grade), funs(round(./13*10, 0)))
+houses$city <- ifelse(houses$zipcode %in% c("98001", "98002", "98092"), "Auburn",
+                      ifelse(houses$zipcode %in% c("98003", "98023"), "Federal Way",
+                      ifelse(houses$zipcode %in% c("98004", "98005", "98006", "98007", "98008"), "Bellevue",
+                      ifelse(houses$zipcode == "98010", "Black Diamond",
+                      ifelse(houses$zipcode == "98011", "Bothell",
+                      ifelse(houses$zipcode == "98014", "Carnation",
+                      ifelse(houses$zipcode == "98019", "Duvall",
+                      ifelse(houses$zipcode == "98022", "Enumclaw",
+                      ifelse(houses$zipcode == "98024", "Fall City",
+                      ifelse(houses$zipcode %in% c("98027", "98029"), "Issaquah",
+                      ifelse(houses$zipcode == "98028", "Kenmore",
+                      ifelse(houses$zipcode %in% c("98030", "98031", "98032", "98042"), "Kent",
+                      ifelse(houses$zipcode %in% c("98033", "98034"), "Kirkland",
+                      ifelse(houses$zipcode %in% c("98038", "98040"), "Maple Valley",
+                      ifelse(houses$zipcode == "98039", "Medina",
+                      ifelse(houses$zipcode == "98045", "North Bend",
+                      ifelse(houses$zipcode %in% c("98052", "98053"), "Redmond",
+                      ifelse(houses$zipcode %in% c("98055", "98056", "98058", "98059"), "Renton",
+                      ifelse(houses$zipcode == "98065", "Snoqualmie",
+                      ifelse(houses$zipcode == "98070", "Vashon",
+                      ifelse(houses$zipcode %in% c("98072", "98077"), "Woodinville",
+                      ifelse(houses$zipcode %in% c("98074", "98075"), "Sammamish", "Seattle"
+                      ))))))))))))))))))))))
+levels(houses$zipcode)
+test <- houses %>% 
+  mutate_at(vars(bedrooms, bathrooms, floors), factor)
+levels(test$bedrooms)
+levels(test$bathrooms)
+levels(test$floors)
+levels(test$grade)
+range(houses$sqft_lot)
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+getmode(houses$sqft_lot)
+median(houses$sqft_lot)
+houses %>% 
+  
+```
+
+# First Plot
+```{r}
+test2 <- houses %>%
+  filter(zipcode == "98038") %>%
+  group_by(bedrooms,bathrooms,floors) %>%
+  summarise(jumlah=n(), mean.price = round(mean(price), 0), mean.grade = round(mean(grade), 0)) %>%
+  ungroup() %>%
+  arrange(desc(jumlah)) %>%
+  head(5)
+test2 <- cbind(No. = 1:5, test2)
+test2$No. <- sub("^", "Type ", test2$No.)
+```
+
+# Second Plot
+```{r}
+houses %>%
+  select(-c("sqft_living", "waterfront", "view", "grade", "sqft_above", "sqft_basement", "lat", "long")) %>% 
+  filter(sqft_lot >= 5000, sqft_lot <= 500000) %>%
+  filter(bedrooms == 4) %>%
+  filter(bathrooms == 2) %>%
+  filter(floors == 2) %>% 
+  mutate(price.per.area = round(price/sqft_lot, 0)) %>% 
+  group_by(zipcode) %>% 
+  summarise(mean.price.per.area = round(mean(price.per.area), 0)) %>% 
+  ungroup() %>% 
+  arrange(mean.price.per.area)
+```
+
+```{r}
+houses %>%
+  filter(zipcode %in% c("98178", "98125")) %>%
+  group_by(bedrooms,bathrooms,floors, zipcode) %>%
+  summarise(jumlah=n(), mean.price = round(mean(price), 0), mean.grade = round(mean(grade), 0)) %>%
+  ungroup() %>%
+  arrange(desc(jumlah)) %>% 
+  group_by(zipcode) %>% 
+  filter(jumlah == max(jumlah))
+```
+
+```{r}
+
+```
+
